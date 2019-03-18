@@ -25,26 +25,19 @@ contract Swaps is Ownable {
     event Deposit(address indexed token, address indexed user, uint amount, uint balance);
     event Refund(address indexed token, address indexed user, uint amount, uint balance);
 
-    constructor(
-        address _owner,
-        address _baseAddress,
-        uint _baseLimit,
-        address _quoteAddress,
-        uint _quoteLimit,
-        uint _expirationTimestamp
-    ) public {
-        require(_baseAddress != _quoteAddress, "Exchanged tokens must be different");
-        require(_baseLimit > 0, "Base limit must be positive");
-        require(_quoteLimit > 0, "Quote limit must be positive");
-        require(_expirationTimestamp > now, "Expiration time must be in future");
+    constructor() public {
+        require(D_BASE_ADDRESS != D_QUOTE_ADDRESS, "Exchanged tokens must be different");
+        require(D_BASE_LIMIT > 0, "Base limit must be positive");
+        require(D_QUOTE_LIMIT > 0, "Quote limit must be positive");
+        require(D_EXPIRATION_TS > now, "Expiration time must be in future");
 
-        baseAddress = _baseAddress;
-        quoteAddress = _quoteAddress;
-        limits[baseAddress] = _baseLimit;
-        limits[quoteAddress] = _quoteLimit;
+        baseAddress = D_BASE_ADDRESS;
+        quoteAddress = D_QUOTE_ADDRESS;
+        limits[baseAddress] = D_BASE_LIMIT;
+        limits[quoteAddress] = D_QUOTE_LIMIT;
 
-        expirationTimestamp = _expirationTimestamp;
-        _transferOwnership(_owner);
+        expirationTimestamp = D_EXPIRATION_TS;
+        _transferOwnership(D_OWNER);
     }
 
     function () external payable {

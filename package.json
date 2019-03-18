@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "compile": "truffle compile"
+    "compile": "./scripts/compile.sh"
   },
   "devDependencies": {
+    "c-preprocessor": "^0.2.12",
     "openzeppelin-solidity": "^2.2.0",
+    "sc-library": "github:MyWishPlatform/sc-library#0.7.1",
     "truffle": "^5.0.8"
   }
 }
