@@ -1,0 +1,12 @@
+{
+  "name": "swaps",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "compile": "truffle compile"
+  },
+  "devDependencies": {
+    "openzeppelin-solidity": "^2.2.0",
+    "truffle": "^5.0.8"
+  }
+}
