@@ -71,7 +71,42 @@ contract Swaps is Ownable {
 
     // todo: check reentrancy
     function refund() public onlyInvestor {
-        // todo
+        uint userInvestments;
+        address[2] memory tokens = [baseAddress, quoteAddress];
+        for (uint t = 0; t < tokens.length; t++) {
+            address token = tokens[t];
+            uint investment = _removeInvestment(investments[token], msg.sender);
+            _removeInvestor(investors[token], msg.sender);
+
+            if (investment > 0) {
+                raised[token] = raised[token].sub(investment);
+                userInvestments = userInvestments.add(investment);
+            }
+        }
+    }
+
+    function _removeInvestment(
+        mapping(address => uint) storage _investments,
+        address _investor
+    ) internal returns (uint _investment) {
+        _investment = _investments[_investor];
+        if (_investment > 0) {
+            delete _investments[_investor];
+        }
+    }
+
+    function _removeInvestor(address[] storage _array, address _investor) internal {
+        uint idx = _array.length - 1;
+        for (uint i = 0; i < _array.length - 1; i++) {
+            if (_array[i] == _investor) {
+                idx = i;
+                break;
+            }
+        }
+
+        _array[idx] = _array[_array.length - 1];
+        delete _array[_array.length - 1];
+        _array.length--;
     }
 
     // todo: withdraw accidentally sent tokens
