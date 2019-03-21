@@ -1,6 +1,5 @@
 module.exports = {
-  networks: {
-  },
+  networks: {},
   mocha: {
     timeout: 100000
   },
@@ -8,11 +7,11 @@ module.exports = {
     solc: {
       version: "0.5.6",
       settings: {
-       optimizer: {
-         enabled: true,
-         runs: 200
-       },
+        optimizer: {
+          enabled: true,
+          runs: 200
+        }
       }
     }
   }
-}
+};

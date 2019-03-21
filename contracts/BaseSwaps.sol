@@ -54,8 +54,12 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         _;
     }
 
-    function() external payable {
-        this.deposit();
+    function()
+        external
+        payable
+        nonReentrant
+    {
+        _deposit(address(0), msg.sender, msg.value);
     }
 
     function deposit()
@@ -128,7 +132,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         require(!isCancelled, "Already cancelled");
         require(raised[baseAddress] == limits[baseAddress], "Base tokens not filled");
         require(raised[quoteAddress] == limits[quoteAddress], "Quote tokens not filled");
-        require(expirationTimestamp <= now, "Contract expired");
+        require(now <= expirationTimestamp, "Contract expired");
 
         _distribute(baseAddress, quoteAddress);
         _distribute(quoteAddress, baseAddress);
@@ -145,7 +149,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
             uint bSideRaised = raised[_bSide];
             uint toPay = userInvestment.mul(bSideRaised).div(aSideRaised);
 
-            _sendTokens(user, _aSide, toPay);
+            _sendTokens(user, _bSide, toPay);
         }
     }
 
