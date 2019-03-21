@@ -54,11 +54,15 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         _;
     }
 
-    function () external payable {
+    function() external payable {
         this.deposit();
     }
 
-    function deposit() external payable nonReentrant {
+    function deposit()
+        external
+        payable
+        nonReentrant
+    {
         _deposit(address(0), msg.sender, msg.value);
     }
 
@@ -73,7 +77,11 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         _swap();
     }
 
-    function cancel() external onlyOwner nonReentrant {
+    function cancel()
+        external
+        onlyOwner
+        nonReentrant
+    {
         require(!isCancelled, "Already cancelled");
         require(!isSwapped, "Already swapped");
 
@@ -91,7 +99,11 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         emit Cancel();
     }
 
-    function refund() external onlyInvestor nonReentrant {
+    function refund()
+        external
+        onlyInvestor
+        nonReentrant
+    {
         address[2] memory tokens = [baseAddress, quoteAddress];
         for (uint t = 0; t < tokens.length; t++) {
             address token = tokens[t];
@@ -103,11 +115,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
                 _sendTokens(token, msg.sender, investment);
             }
 
-            emit Refund(
-                token,
-                msg.sender,
-                investment
-            );
+            emit Refund(token, msg.sender, investment);
         }
     }
 
@@ -152,7 +160,10 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     function _removeInvestment(
         mapping(address => uint) storage _investments,
         address _investor
-    ) internal returns (uint _investment) {
+    )
+        internal
+        returns (uint _investment)
+    {
         _investment = _investments[_investor];
         if (_investment > 0) {
             delete _investments[_investor];
@@ -173,29 +184,34 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         _array.length--;
     }
 
-    function _deposit(address _token, address _from, uint _amount) internal {
+    function _deposit(
+        address _token,
+        address _from,
+        uint _amount
+    ) internal {
+        uint amount = _amount;
         require(baseAddress == _token || quoteAddress == _token, "You can deposit only base or quote currency");
-        require(_amount > 0, "Currency amount must be positive");
+        require(amount > 0, "Currency amount must be positive");
         require(raised[_token] < limits[_token], "Limit already reached");
 
         if (!_isInvestor(_from)) {
             investors[_token].push(_from);
         }
 
-        uint raisedWithOverflow = raised[_token].add(_amount);
+        uint raisedWithOverflow = raised[_token].add(amount);
         if (raisedWithOverflow > limits[_token]) {
             uint overflow = raisedWithOverflow.sub(limits[_token]);
             _sendTokens(_token, _from, overflow);
-            _amount = raisedWithOverflow.sub(overflow);
+            amount = raisedWithOverflow.sub(overflow);
         }
 
-        investments[_token][_from] = investments[_token][_from].add(_amount);
+        investments[_token][_from] = investments[_token][_from].add(amount);
 
-        raised[_token] = raised[_token].add(_amount);
+        raised[_token] = raised[_token].add(amount);
         emit Deposit(
             _token,
             _from,
-            _amount,
+            amount,
             investments[_token][_from]
         );
 

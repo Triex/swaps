@@ -12,6 +12,6 @@ contract Swaps is BaseSwaps {
             D_BASE_LIMIT,
             D_QUOTE_LIMIT,
             D_EXPIRATION_TS
-        ) {
-    }
+        )
+    {}
 }
