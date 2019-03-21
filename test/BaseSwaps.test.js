@@ -108,7 +108,7 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
     for (let i = 0; i < 3; i++) {
       await token.mint(from, value);
       await token.approve(swaps.address, value, { from });
-      const { logs } = await swaps.depositTokens(token.address, { from });
+      const { logs } = await swaps.depositQuote({ from });
       expectedBalance = expectedBalance.add(value);
       expectEvent.inLogs(logs, "Deposit", {
         token: token.address,
@@ -133,6 +133,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
     );
 
     const from = accounts[0];
-    await shouldFail(swaps.depositTokens(token.address, { from }));
+    await shouldFail(swaps.depositQuote(token.address, { from }));
   });
 });

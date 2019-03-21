@@ -59,26 +59,31 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         payable
         nonReentrant
     {
-        _deposit(address(0), msg.sender, msg.value);
+        _depositEther(msg.value);
     }
 
-    function deposit()
+    function depositBase()
         external
         payable
         nonReentrant
     {
-        _deposit(address(0), msg.sender, msg.value);
+        if (baseAddress == address(0)) {
+            _depositEther(msg.value);
+        } else {
+            _depositTokens(baseAddress);
+        }
     }
 
-    function depositTokens(address _token) external nonReentrant {
-        address from = msg.sender;
-        uint allowance = IERC20(_token).allowance(from, address(this));
-        IERC20(_token).transferFrom(from, address(this), allowance);
-        _deposit(_token, from, allowance);
-    }
-
-    function swap() external nonReentrant {
-        _swap();
+    function depositQuote()
+        external
+        payable
+        nonReentrant
+    {
+        if (quoteAddress == address(0)) {
+            _depositEther(msg.value);
+        } else {
+            _depositTokens(quoteAddress);
+        }
     }
 
     function cancel()
@@ -121,6 +126,38 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
 
             emit Refund(token, msg.sender, investment);
         }
+    }
+
+    function baseLimit() public view returns (uint) {
+        return limits[baseAddress];
+    }
+
+    function quoteLimit() public view returns (uint) {
+        return limits[quoteAddress];
+    }
+
+    function baseRaised() public view returns (uint) {
+        return raised[baseAddress];
+    }
+
+    function quoteRaised() public view returns (uint) {
+        return raised[baseAddress];
+    }
+
+    function baseInvestors() public view returns (address[] memory) {
+        return investors[baseAddress];
+    }
+
+    function quoteInvestors() public view returns (address[] memory) {
+        return investors[quoteAddress];
+    }
+
+    function baseUserInvestment(address _user) public view returns (uint) {
+        return investments[baseAddress][_user];
+    }
+
+    function quoteUserInvestment(address _user) public view returns (uint) {
+        return investments[baseAddress][_user];
     }
 
     function tokenFallback(address, uint, bytes memory) public pure {
@@ -186,6 +223,16 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         _array[idx] = _array[_array.length - 1];
         delete _array[_array.length - 1];
         _array.length--;
+    }
+
+    function _depositEther(uint _amount) internal {
+        _deposit(address(0), msg.sender, _amount);
+    }
+
+    function _depositTokens(address _token) internal {
+        uint allowance = IERC20(_token).allowance(msg.sender, address(this));
+        IERC20(_token).transferFrom(msg.sender, address(this), allowance);
+        _deposit(_token, msg.sender, allowance);
     }
 
     function _deposit(
