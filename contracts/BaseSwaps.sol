@@ -79,11 +79,11 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
 
     function cancel()
         external
-        onlyOwner
         nonReentrant
     {
         require(!isCancelled, "Already cancelled");
         require(!isSwapped, "Already swapped");
+        require(msg.sender == owner() || expirationTimestamp > now, "Only by owner or after time expiration");
 
         address[2] memory tokens = [baseAddress, quoteAddress];
         for (uint t = 0; t < tokens.length; t++) {
