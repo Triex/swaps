@@ -49,8 +49,8 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         _transferOwnership(_owner);
     }
 
-    modifier onlyInvestor() {
-        require(_isInvestor(msg.sender), "Allowed only for investors");
+    modifier onlyInvestor(address _token) {
+        require(_isInvestor(_token, msg.sender), "Allowed only for investors");
         _;
     }
 
@@ -108,24 +108,20 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         emit Cancel();
     }
 
-    function refund()
+    function refundBase()
         external
-        onlyInvestor
+        onlyInvestor(baseAddress)
         nonReentrant
     {
-        address[2] memory tokens = [baseAddress, quoteAddress];
-        for (uint t = 0; t < tokens.length; t++) {
-            address token = tokens[t];
-            uint investment = _removeInvestment(investments[token], msg.sender);
-            _removeInvestor(investors[token], msg.sender);
+        _refund(baseAddress);
+    }
 
-            if (investment > 0) {
-                raised[token] = raised[token].sub(investment);
-                _sendTokens(token, msg.sender, investment);
-            }
-
-            emit Refund(token, msg.sender, investment);
-        }
+    function refundQuote()
+        external
+        onlyInvestor(quoteAddress)
+        nonReentrant
+    {
+        _refund(quoteAddress);
     }
 
     function baseLimit() public view returns (uint) {
@@ -164,6 +160,23 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         revert("Use approve instead");
     }
 
+    function _refund(address _token) internal {
+        address user = msg.sender;
+        uint investment = investments[_token][user];
+        if (investment > 0) {
+            delete investments[_token][user];
+        }
+
+        _removeInvestor(investors[_token], user);
+
+        if (investment > 0) {
+            raised[_token] = raised[_token].sub(investment);
+            _sendTokens(_token, user, investment);
+        }
+
+        emit Refund(_token, user, investment);
+    }
+
     function _swap() internal {
         require(!isSwapped, "Already swapped");
         require(!isCancelled, "Already cancelled");
@@ -195,19 +208,6 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
             address(uint160(_to)).transfer(_amount);
         } else {
             IERC20(_token).transfer(_to, _amount);
-        }
-    }
-
-    function _removeInvestment(
-        mapping(address => uint) storage _investments,
-        address _investor
-    )
-        internal
-        returns (uint _investment)
-    {
-        _investment = _investments[_investor];
-        if (_investment > 0) {
-            delete _investments[_investor];
         }
     }
 
@@ -245,7 +245,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         require(amount > 0, "Currency amount must be positive");
         require(raised[_token] < limits[_token], "Limit already reached");
 
-        if (!_isInvestor(_from)) {
+        if (!_isInvestor(_token, _from)) {
             investors[_token].push(_from);
         }
 
@@ -271,15 +271,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         }
     }
 
-    function _isInvestor(address _who) internal view returns (bool) {
-        if (investments[baseAddress][_who] > 0) {
-            return true;
-        }
-
-        if (investments[quoteAddress][_who] > 0) {
-            return true;
-        }
-
-        return false;
+    function _isInvestor(address _token, address _who) internal view returns (bool) {
+        return investments[_token][_who] > 0;
     }
 }
