@@ -149,7 +149,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
             uint bSideRaised = raised[_bSide];
             uint toPay = userInvestment.mul(bSideRaised).div(aSideRaised);
 
-            _sendTokens(user, _bSide, toPay);
+            _sendTokens(_bSide, user, toPay);
         }
     }
 
