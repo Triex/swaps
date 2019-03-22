@@ -26,6 +26,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     event Deposit(address indexed token, address indexed user, uint amount, uint balance);
     event Refund(address indexed token, address indexed user, uint amount);
     event Swap(address indexed byUser);
+    event SwapSend(address indexed token, address indexed user, uint amount);
 
     constructor(
         address _owner,
@@ -156,6 +157,14 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         return investments[baseAddress][_user];
     }
 
+    function isBaseFilled() public view returns (bool) {
+        return raised[baseAddress] == limits[baseAddress];
+    }
+
+    function isQuoteFilled() public view returns (bool) {
+        return raised[quoteAddress] == limits[quoteAddress];
+    }
+
     function tokenFallback(address, uint, bytes memory) public pure {
         revert("Use approve instead");
     }
@@ -180,8 +189,8 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     function _swap() internal {
         require(!isSwapped, "Already swapped");
         require(!isCancelled, "Already cancelled");
-        require(raised[baseAddress] == limits[baseAddress], "Base tokens not filled");
-        require(raised[quoteAddress] == limits[quoteAddress], "Quote tokens not filled");
+        require(isBaseFilled(), "Base tokens not filled");
+        require(isQuoteFilled(), "Quote tokens not filled");
         require(now <= expirationTimestamp, "Contract expired");
 
         _distribute(baseAddress, quoteAddress);
@@ -200,6 +209,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
             uint toPay = userInvestment.mul(bSideRaised).div(aSideRaised);
 
             _sendTokens(_bSide, user, toPay);
+            emit SwapSend(_bSide, user, toPay);
         }
     }
 
@@ -266,7 +276,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
             investments[_token][_from]
         );
 
-        if ((raised[baseAddress] == limits[baseAddress]) && (raised[quoteAddress] == limits[quoteAddress])) {
+        if (isBaseFilled() && isQuoteFilled()) {
             _swap();
         }
     }
