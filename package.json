@@ -3,10 +3,17 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "compile": "truffle compile"
+    "compile": "./scripts/compile.sh",
+    "test": "truffle test --network ganache"
   },
   "devDependencies": {
-    "openzeppelin-solidity": "^2.2.0",
+    "c-preprocessor": "^0.2.12",
+    "chai": "^4.2.0",
+    "openzeppelin-test-helpers": "^0.3.0",
+    "sc-library": "github:MyWishPlatform/sc-library#0.7.1",
     "truffle": "^5.0.8"
+  },
+  "dependencies": {
+    "openzeppelin-solidity": "2.2.0"
   }
 }
