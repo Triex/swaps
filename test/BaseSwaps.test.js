@@ -271,8 +271,126 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
     expect(await quoteToken.balanceOf(accounts[0])).to.be.bignumber.equal(quoteLimit);
   });
 
-  // todo: refund before filled one side
-  // todo: refund after one side filled
-  // todo: try to refund after swap
-  //
+  it("try to refund before filled one side", async () => {
+    const baseToken = await Token.new();
+    const quoteToken = await Token.new();
+
+    const baseLimit = ether("1");
+    const quoteLimit = ether("2");
+
+    const swaps = await Swaps.new(
+      owner,
+      baseToken.address,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
+      now.add(duration.minutes(1))
+    );
+
+    await baseToken.mint(accounts[0], baseLimit);
+    await baseToken.approve(swaps.address, baseLimit, { from: accounts[0] });
+    await swaps.depositBase({ from: accounts[0] });
+    await swaps.refundBase({ from: accounts[0] });
+
+    expect(await baseToken.balanceOf(accounts[0])).to.be.bignumber.equal(baseLimit);
+    expect(await swaps.quoteRaised()).to.be.bignumber.equal(new BN("0"));
+    expect(await swaps.baseUserInvestment(accounts[0])).to.be.bignumber.equal(new BN("0"));
+    expect(await swaps.baseInvestors()).to.have.length(0);
+  });
+
+  it("try to refund after swap", async () => {
+    const baseToken = await Token.new();
+    const quoteToken = await Token.new();
+
+    const baseLimit = ether("1");
+    const quoteLimit = ether("2");
+
+    const swaps = await Swaps.new(
+      owner,
+      baseToken.address,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
+      now.add(duration.minutes(1))
+    );
+
+    await baseToken.mint(accounts[0], baseLimit);
+    await baseToken.approve(swaps.address, baseLimit, { from: accounts[0] });
+    await swaps.depositBase({ from: accounts[0] });
+
+    await quoteToken.mint(accounts[1], quoteLimit);
+    await quoteToken.approve(swaps.address, quoteLimit, { from: accounts[1] });
+    await swaps.depositQuote({ from: accounts[1] });
+
+    await shouldFail(swaps.refundBase({ from: accounts[0] }));
+    await shouldFail(swaps.refundQuote({ from: accounts[1] }));
+  });
+
+  it("cancel before end", async () => {
+    const baseToken = await Token.new();
+    const quoteToken = await Token.new();
+
+    const baseLimit = ether("1");
+    const quoteLimit = ether("2");
+
+    const swaps = await Swaps.new(
+      owner,
+      baseToken.address,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
+      now.add(duration.minutes(1))
+    );
+
+    await baseToken.mint(accounts[0], baseLimit);
+    await baseToken.approve(swaps.address, baseLimit, { from: accounts[0] });
+    await swaps.depositBase({ from: accounts[0] });
+
+    await shouldFail(swaps.cancel({ from: accounts[0] }));
+
+    const { logs } = await swaps.cancel();
+    expectEvent.inLogs(logs, "Cancel");
+    expect(await swaps.isCancelled()).to.be.equal(true);
+    expect(await baseToken.balanceOf(accounts[0])).to.be.bignumber.equal(baseLimit);
+
+    await quoteToken.mint(accounts[1], quoteLimit);
+    await quoteToken.approve(swaps.address, quoteLimit, { from: accounts[1] });
+    await shouldFail(swaps.depositQuote({ from: accounts[1] }));
+  });
+
+  it("after end", async () => {
+    const baseToken = await Token.new();
+    const quoteToken = await Token.new();
+
+    const baseLimit = ether("1");
+    const quoteLimit = ether("2");
+
+    const swaps = await Swaps.new(
+      owner,
+      baseToken.address,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
+      now.add(duration.minutes(1))
+    );
+
+    await baseToken.mint(accounts[0], baseLimit);
+    await baseToken.approve(swaps.address, baseLimit.div(new BN("2")), { from: accounts[0] });
+    await swaps.depositBase({ from: accounts[0] });
+
+    await shouldFail(swaps.cancel({ from: accounts[0] }));
+
+    await time.increaseTo((await swaps.expirationTimestamp()).add(duration.minutes(1)));
+
+    await baseToken.approve(swaps.address, baseLimit.div(new BN("2")), { from: accounts[0] });
+    await shouldFail(swaps.depositBase({ from: accounts[0] }));
+
+    const { logs } = await swaps.cancel({ from: accounts[0] });
+    expectEvent.inLogs(logs, "Cancel");
+    expect(await swaps.isCancelled()).to.be.equal(true);
+    expect(await baseToken.balanceOf(accounts[0])).to.be.bignumber.equal(baseLimit);
+  });
+
+  // todo: check deposit over limit
+  // todo: calculate investors count limit
 });

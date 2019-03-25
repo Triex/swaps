@@ -254,6 +254,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         require(baseAddress == _token || quoteAddress == _token, "You can deposit only base or quote currency");
         require(amount > 0, "Currency amount must be positive");
         require(raised[_token] < limits[_token], "Limit already reached");
+        require(now <= expirationTimestamp, "Contract expired");
 
         if (!_isInvestor(_token, _from)) {
             investors[_token].push(_from);
