@@ -264,7 +264,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         if (raisedWithOverflow > limits[_token]) {
             uint overflow = raisedWithOverflow.sub(limits[_token]);
             _sendTokens(_token, _from, overflow);
-            amount = raisedWithOverflow.sub(overflow);
+            amount = amount.sub(overflow);
         }
 
         investments[_token][_from] = investments[_token][_from].add(amount);
