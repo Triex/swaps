@@ -9,6 +9,8 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract BaseSwaps is Ownable, ReentrancyGuard {
     using SafeMath for uint;
 
+    uint private MAX_INVESTORS = 90;
+
     bool public isSwapped;
     bool public isCancelled;
 
@@ -257,6 +259,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         require(now <= expirationTimestamp, "Contract expired");
 
         if (!_isInvestor(_token, _from)) {
+            require(investors[_token].length <= MAX_INVESTORS, "Too many investors");
             investors[_token].push(_from);
         }
 

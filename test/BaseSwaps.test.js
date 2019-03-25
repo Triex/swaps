@@ -17,9 +17,15 @@ const Token = artifacts.require("TestToken");
 contract("BaseSwaps", ([owner, ...accounts]) => {
   let now;
   let gasPrice = new BN("20000000000");
+  let baseToken;
+  let quoteToken;
+  const baseLimit = ether("1");
+  const quoteLimit = ether("2");
 
   beforeEach(async () => {
     now = await time.latest();
+    baseToken = await Token.new();
+    quoteToken = await Token.new();
   });
 
   async function deposit(investor, amount, token, swaps) {
@@ -74,20 +80,17 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("can deposit eth several times", async () => {
-    const ethLimit = ether("1");
-    const tokenLimit = ether("2");
-    const token = await Token.new();
     const swaps = await Swaps.new(
       owner,
       ZERO_ADDRESS,
-      token.address,
-      ethLimit,
-      tokenLimit,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
       now.add(duration.minutes(1))
     );
 
     const from = accounts[0];
-    const value = ethLimit.div(new BN("4"));
+    const value = baseLimit.div(new BN("4"));
     let expectedBalance = new BN("0");
     for (let i = 0; i < 3; i++) {
       const { logs } = await swaps.sendTransaction({ from, value });
@@ -102,26 +105,23 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("can deposit tokens several times", async () => {
-    const ethLimit = ether("1");
-    const tokenLimit = ether("2");
-    const token = await Token.new();
     const swaps = await Swaps.new(
       owner,
       ZERO_ADDRESS,
-      token.address,
-      ethLimit,
-      tokenLimit,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
       now.add(duration.minutes(1))
     );
 
     const from = accounts[0];
-    const value = tokenLimit.div(new BN("4"));
+    const value = quoteLimit.div(new BN("4"));
     let expectedBalance = new BN("0");
     for (let i = 0; i < 3; i++) {
-      const { logs } = await deposit(from, value, token, swaps);
+      const { logs } = await deposit(from, value, quoteToken, swaps);
       expectedBalance = expectedBalance.add(value);
       expectEvent.inLogs(logs, "Deposit", {
-        token: token.address,
+        token: quoteToken.address,
         user: from,
         amount: value,
         balance: expectedBalance
@@ -130,82 +130,66 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("cannot deposit without approve", async () => {
-    const ethLimit = ether("1");
-    const tokenLimit = ether("2");
-    const token = await Token.new();
     const swaps = await Swaps.new(
       owner,
       ZERO_ADDRESS,
-      token.address,
-      ethLimit,
-      tokenLimit,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
       now.add(duration.minutes(1))
     );
 
     const from = accounts[0];
-    await shouldFail(swaps.depositQuote(token.address, { from }));
+    await shouldFail(swaps.depositQuote(quoteToken.address, { from }));
   });
 
   it("successful swap", async () => {
-    const ethLimit = ether("1");
-    const tokenLimit = ether("2");
-    const token = await Token.new();
     const swaps = await Swaps.new(
       owner,
       ZERO_ADDRESS,
-      token.address,
-      ethLimit,
-      tokenLimit,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
       now.add(duration.minutes(1))
     );
 
-    await swaps.sendTransaction({ value: ethLimit, from: accounts[0] });
+    await swaps.sendTransaction({ value: baseLimit, from: accounts[0] });
 
-    await token.mint(accounts[1], tokenLimit);
-    await token.approve(swaps.address, tokenLimit, { from: accounts[1] });
+    await quoteToken.mint(accounts[1], quoteLimit);
+    await quoteToken.approve(swaps.address, quoteLimit, { from: accounts[1] });
     const balanceTracker = await balance.tracker(accounts[1]);
     const { receipt: { gasUsed }, logs } = await swaps.depositQuote({ from: accounts[1] });
 
     expectEvent.inLogs(logs, "Swap", { byUser: accounts[1] });
 
-    expect(await token.balanceOf(accounts[0])).to.be.bignumber.equal(tokenLimit);
-    expect(await token.balanceOf(accounts[1])).to.be.bignumber.equal(new BN("0"));
+    expect(await quoteToken.balanceOf(accounts[0])).to.be.bignumber.equal(quoteLimit);
+    expect(await quoteToken.balanceOf(accounts[1])).to.be.bignumber.equal(new BN("0"));
 
-    expect(await balanceTracker.delta()).to.be.bignumber.equal(ethLimit.sub(new BN(gasUsed).mul(gasPrice)));
+    expect(await balanceTracker.delta()).to.be.bignumber.equal(baseLimit.sub(new BN(gasUsed).mul(gasPrice)));
   });
 
   it("swap between tokens", async () => {
-    const tokens = [await Token.new(), await Token.new()];
-    const limits = [ether("1"), ether("2")];
-
     const swaps = await Swaps.new(
       owner,
-      tokens[0].address,
-      tokens[1].address,
-      limits[0],
-      limits[1],
+      baseToken.address,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
       now.add(duration.minutes(1))
     );
 
-    for (let i = 0; i < tokens.length; i++) {
-      await deposit(accounts[i], limits[i], tokens[i], swaps);
-    }
+    await deposit(accounts[0], baseLimit, baseToken, swaps);
+    await deposit(accounts[1], quoteLimit, quoteToken, swaps);
 
-    expect(await tokens[0].balanceOf(accounts[0])).to.be.bignumber.equal(new BN("0"));
-    expect(await tokens[0].balanceOf(accounts[1])).to.be.bignumber.equal(limits[0]);
-    expect(await tokens[1].balanceOf(accounts[1])).to.be.bignumber.equal(new BN("0"));
-    expect(await tokens[1].balanceOf(accounts[0])).to.be.bignumber.equal(limits[1]);
+    expect(await baseToken.balanceOf(accounts[0])).to.be.bignumber.equal(new BN("0"));
+    expect(await baseToken.balanceOf(accounts[1])).to.be.bignumber.equal(baseLimit);
+    expect(await quoteToken.balanceOf(accounts[1])).to.be.bignumber.equal(new BN("0"));
+    expect(await quoteToken.balanceOf(accounts[0])).to.be.bignumber.equal(quoteLimit);
   });
 
   it("swap between many addresses", async () => {
     const baseInvestors = accounts.slice(0, accounts.length / 2);
     const quoteInvestors = accounts.slice(accounts.length / 2, accounts.length);
-
-    const baseToken = await Token.new();
-    const quoteToken = await Token.new();
-
-    const baseLimit = ether("1");
-    const quoteLimit = ether("2");
 
     const swaps = await Swaps.new(
       owner,
@@ -242,12 +226,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("deposit from one address to both sides", async () => {
-    const baseToken = await Token.new();
-    const quoteToken = await Token.new();
-
-    const baseLimit = ether("1");
-    const quoteLimit = ether("2");
-
     const swaps = await Swaps.new(
       owner,
       baseToken.address,
@@ -266,12 +244,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("try to refund before filled one side", async () => {
-    const baseToken = await Token.new();
-    const quoteToken = await Token.new();
-
-    const baseLimit = ether("1");
-    const quoteLimit = ether("2");
-
     const swaps = await Swaps.new(
       owner,
       baseToken.address,
@@ -291,12 +263,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("try to refund after swap", async () => {
-    const baseToken = await Token.new();
-    const quoteToken = await Token.new();
-
-    const baseLimit = ether("1");
-    const quoteLimit = ether("2");
-
     const swaps = await Swaps.new(
       owner,
       baseToken.address,
@@ -314,12 +280,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("cancel before end", async () => {
-    const baseToken = await Token.new();
-    const quoteToken = await Token.new();
-
-    const baseLimit = ether("1");
-    const quoteLimit = ether("2");
-
     const swaps = await Swaps.new(
       owner,
       baseToken.address,
@@ -342,12 +302,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("after end", async () => {
-    const baseToken = await Token.new();
-    const quoteToken = await Token.new();
-
-    const baseLimit = ether("1");
-    const quoteLimit = ether("2");
-
     const swaps = await Swaps.new(
       owner,
       baseToken.address,
@@ -372,12 +326,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("check deposit over limit for tokens", async () => {
-    const baseToken = await Token.new();
-    const quoteToken = await Token.new();
-
-    const baseLimit = ether("1");
-    const quoteLimit = ether("2");
-
     const swaps = await Swaps.new(
       owner,
       baseToken.address,
@@ -387,7 +335,7 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
       now.add(duration.minutes(1))
     );
 
-    await deposit(accounts[0], baseLimit.div(new BN('2')), baseToken, swaps);
+    await deposit(accounts[0], baseLimit.div(new BN("2")), baseToken, swaps);
     await deposit(accounts[0], baseLimit, baseToken, swaps);
     await shouldFail(deposit(accounts[0], baseLimit, baseToken, swaps));
     expect(await baseToken.balanceOf(swaps.address)).to.be.bignumber.equal(baseLimit);
@@ -396,11 +344,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("check deposit over limit for ethers", async () => {
-    const quoteToken = await Token.new();
-
-    const baseLimit = ether("1");
-    const quoteLimit = ether("2");
-
     const swaps = await Swaps.new(
       owner,
       ZERO_ADDRESS,
@@ -410,13 +353,11 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
       now.add(duration.minutes(1))
     );
 
-    await swaps.depositBase({ from: accounts[0], value: baseLimit.div(new BN('2')) });
+    await swaps.depositBase({ from: accounts[0], value: baseLimit.div(new BN("2")) });
     await swaps.depositBase({ from: accounts[0], value: baseLimit });
     await shouldFail(swaps.depositBase({ from: accounts[0], value: baseLimit }));
     expect(await balance.current(swaps.address)).to.be.bignumber.equal(baseLimit);
     expect(await swaps.baseRaised()).to.be.bignumber.equal(baseLimit);
     expect(await swaps.baseUserInvestment(accounts[0])).to.be.bignumber.equal(baseLimit);
   });
-
-  // todo: calculate investors count limit
 });

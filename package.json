@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "compile": "./scripts/compile.sh",
-    "test": "./scripts/test.sh"
+    "test": "truffle test --network ganache"
   },
   "devDependencies": {
     "c-preprocessor": "^0.2.12",
