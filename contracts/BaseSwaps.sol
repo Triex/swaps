@@ -9,7 +9,7 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract BaseSwaps is Ownable, ReentrancyGuard {
     using SafeMath for uint;
 
-    uint private MAX_INVESTORS = 90;
+    uint private MAX_INVESTORS = 5;
 
     bool public isSwapped;
     bool public isCancelled;
