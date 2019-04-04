@@ -32,9 +32,9 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
     await token.mint(investor, amount);
     await token.approve(swaps.address, amount, { from: investor });
     const depositFunc = (token.address === await swaps.baseAddress())
-      ? swaps.depositBase
-      : swaps.depositQuote;
-    return depositFunc({ from: investor });
+      ? swaps.depositBaseTokens
+      : swaps.depositQuoteTokens;
+    return depositFunc(amount, { from: investor });
   }
 
   it("should fail with same addresses", async () => {
@@ -140,7 +140,7 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
     );
 
     const from = accounts[0];
-    await shouldFail(swaps.depositQuote(quoteToken.address, { from }));
+    await shouldFail(swaps.depositQuoteTokens(quoteToken.address, quoteLimit, { from }));
   });
 
   it("successful swap", async () => {
@@ -158,7 +158,7 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
     await quoteToken.mint(accounts[1], quoteLimit);
     await quoteToken.approve(swaps.address, quoteLimit, { from: accounts[1] });
     const balanceTracker = await balance.tracker(accounts[1]);
-    const { receipt: { gasUsed }, logs } = await swaps.depositQuote({ from: accounts[1] });
+    const { receipt: { gasUsed }, logs } = await swaps.depositQuoteTokens(quoteLimit, { from: accounts[1] });
 
     expectEvent.inLogs(logs, "Swap", { byUser: accounts[1] });
 
@@ -353,9 +353,9 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
       now.add(duration.minutes(1))
     );
 
-    await swaps.depositBase({ from: accounts[0], value: baseLimit.div(new BN("2")) });
-    await swaps.depositBase({ from: accounts[0], value: baseLimit });
-    await shouldFail(swaps.depositBase({ from: accounts[0], value: baseLimit }));
+    await swaps.sendTransaction({ from: accounts[0], value: baseLimit.div(new BN("2")) });
+    await swaps.sendTransaction({ from: accounts[0], value: baseLimit });
+    await shouldFail(swaps.sendTransaction({ from: accounts[0], value: baseLimit }));
     expect(await balance.current(swaps.address)).to.be.bignumber.equal(baseLimit);
     expect(await swaps.baseRaised()).to.be.bignumber.equal(baseLimit);
     expect(await swaps.baseUserInvestment(accounts[0])).to.be.bignumber.equal(baseLimit);
