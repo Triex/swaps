@@ -319,9 +319,9 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
 
     await shouldFail(deposit(accounts[0], baseLimit.div(new BN("2")), baseToken, swaps));
 
-    const { logs } = await swaps.cancel({ from: accounts[0] });
-    expectEvent.inLogs(logs, "Cancel");
-    expect(await swaps.isCancelled()).to.be.equal(true);
+    await shouldFail.reverting(swaps.cancel({ from: accounts[0] }));
+    const { logs } = await swaps.refundBase({ from: accounts[0] });
+    expectEvent.inLogs(logs, "Refund");
     expect(await baseToken.balanceOf(accounts[0])).to.be.bignumber.equal(baseLimit);
   });
 
