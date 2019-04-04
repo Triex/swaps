@@ -73,6 +73,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         if (baseAddress == address(0)) {
             _depositEther(msg.value);
         } else {
+            require(msg.value == 0, "Payable not allowed here");
             _depositTokens(baseAddress);
         }
     }
@@ -85,6 +86,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         if (quoteAddress == address(0)) {
             _depositEther(msg.value);
         } else {
+            require(msg.value == 0, "Payable not allowed here");
             _depositTokens(quoteAddress);
         }
     }
@@ -140,7 +142,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     }
 
     function quoteRaised() public view returns (uint) {
-        return raised[baseAddress];
+        return raised[quoteAddress];
     }
 
     function baseInvestors() public view returns (address[] memory) {
@@ -156,7 +158,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     }
 
     function quoteUserInvestment(address _user) public view returns (uint) {
-        return investments[baseAddress][_user];
+        return investments[quoteAddress][_user];
     }
 
     function isBaseFilled() public view returns (bool) {
