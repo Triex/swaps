@@ -5,7 +5,6 @@ import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-// todo: checkable
 contract BaseSwaps is Ownable, ReentrancyGuard {
     using SafeMath for uint;
 
@@ -65,30 +64,18 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         _depositEther(msg.value);
     }
 
-    function depositBase()
+    function depositBaseTokens(uint _value)
         external
-        payable
         nonReentrant
     {
-        if (baseAddress == address(0)) {
-            _depositEther(msg.value);
-        } else {
-            require(msg.value == 0, "Payable not allowed here");
-            _depositTokens(baseAddress);
-        }
+        _depositTokens(baseAddress, _value);
     }
 
-    function depositQuote()
+    function depositQuoteTokens(uint _value)
         external
-        payable
         nonReentrant
     {
-        if (quoteAddress == address(0)) {
-            _depositEther(msg.value);
-        } else {
-            require(msg.value == 0, "Payable not allowed here");
-            _depositTokens(quoteAddress);
-        }
+        _depositTokens(quoteAddress, _value);
     }
 
     function cancel()
@@ -243,9 +230,10 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         _deposit(address(0), msg.sender, _amount);
     }
 
-    function _depositTokens(address _token) internal {
+    function _depositTokens(address _token, uint _amount) internal {
         uint allowance = IERC20(_token).allowance(msg.sender, address(this));
-        IERC20(_token).transferFrom(msg.sender, address(this), allowance);
+        require(_amount <= allowance, "Allowance should be not less than amount");
+        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         _deposit(_token, msg.sender, allowance);
     }
 
