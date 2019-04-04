@@ -73,6 +73,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         if (baseAddress == address(0)) {
             _depositEther(msg.value);
         } else {
+            require(msg.value == 0, "Payable not allowed here");
             _depositTokens(baseAddress);
         }
     }
@@ -85,6 +86,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         if (quoteAddress == address(0)) {
             _depositEther(msg.value);
         } else {
+            require(msg.value == 0, "Payable not allowed here");
             _depositTokens(quoteAddress);
         }
     }
