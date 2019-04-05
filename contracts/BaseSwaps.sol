@@ -156,10 +156,6 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         return raised[quoteAddress] == limits[quoteAddress];
     }
 
-    function tokenFallback(address, uint, bytes memory) public pure {
-        revert("Use approve instead");
-    }
-
     function _refund(address _token) internal {
         require(!isSwapped, "Already swapped");
         address user = msg.sender;
