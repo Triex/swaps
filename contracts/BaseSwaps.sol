@@ -231,7 +231,7 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         uint allowance = IERC20(_token).allowance(msg.sender, address(this));
         require(_amount <= allowance, "Allowance should be not less than amount");
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-        _deposit(_token, msg.sender, allowance);
+        _deposit(_token, msg.sender, _amount);
     }
 
     function _deposit(
