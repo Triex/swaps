@@ -189,12 +189,20 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     }
 
     function _distribute(address _aSide, address _bSide) internal {
+        uint remainder = raised[_bSide];
         for (uint i = 0; i < investors[_aSide].length; i++) {
             address user = investors[_aSide][i];
-            uint aSideRaised = raised[_aSide];
-            uint userInvestment = investments[_aSide][user];
-            uint bSideRaised = raised[_bSide];
-            uint toPay = userInvestment.mul(bSideRaised).div(aSideRaised);
+            uint toPay;
+            // last
+            if (i + 1 == investors[_aSide].length) {
+                toPay = remainder;
+            } else {
+                uint aSideRaised = raised[_aSide];
+                uint userInvestment = investments[_aSide][user];
+                uint bSideRaised = raised[_bSide];
+                toPay = userInvestment.mul(bSideRaised).div(aSideRaised);
+                remainder = remainder.sub(toPay);
+            }
 
             _sendTokens(_bSide, user, toPay);
             emit SwapSend(_bSide, user, toPay);
