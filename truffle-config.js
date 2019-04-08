@@ -1,5 +1,13 @@
+const ganache = require("ganache-core");
+
 module.exports = {
-  networks: {},
+  network: "ganache",
+  networks: {
+    ganache: {
+      network_id: "*",
+      provider: ganache.provider({ total_accounts: 100 })
+    }
+  },
   mocha: {
     timeout: 100000
   },
