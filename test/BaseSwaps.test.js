@@ -188,9 +188,6 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
   });
 
   it("swap between many addresses", async () => {
-    const baseInvestors = accounts.slice(0, accounts.length / 2);
-    const quoteInvestors = accounts.slice(accounts.length / 2, accounts.length);
-
     const swaps = await Swaps.new(
       owner,
       baseToken.address,
@@ -199,6 +196,10 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
       quoteLimit,
       now.add(duration.minutes(1))
     );
+
+    const maxLength = Math.min(Number(await swaps.MAX_INVESTORS()), accounts.length);
+    const baseInvestors = accounts.slice(0, maxLength);
+    const quoteInvestors = accounts.slice(maxLength, maxLength * 2);
 
     const baseAmount = baseLimit.div(new BN(baseInvestors.length));
     for (let i = 0; i < baseInvestors.length; i++) {
@@ -359,5 +360,24 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
     expect(await balance.current(swaps.address)).to.be.bignumber.equal(baseLimit);
     expect(await swaps.baseRaised()).to.be.bignumber.equal(baseLimit);
     expect(await swaps.baseUserInvestment(accounts[0])).to.be.bignumber.equal(baseLimit);
+  });
+
+  it("cannot deposit more than INVESTORS LIMIT", async () => {
+    const swaps = await Swaps.new(
+      owner,
+      ZERO_ADDRESS,
+      quoteToken.address,
+      baseLimit,
+      quoteLimit,
+      now.add(duration.minutes(1))
+    );
+
+    const maxInvestorsCount = await swaps.MAX_INVESTORS();
+    const value = baseLimit.div(maxInvestorsCount.add(new BN("1")));
+    for (let i = 0; i < Number(maxInvestorsCount); i++) {
+      await swaps.sendTransaction({ from: accounts[i], value });
+    }
+
+    await shouldFail(swaps.sendTransaction({ from: accounts[maxInvestorsCount], value }));
   });
 });
