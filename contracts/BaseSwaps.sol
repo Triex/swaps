@@ -1,9 +1,9 @@
 pragma solidity ^0.5.6;
 
 import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
-import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "./IERC20.sol";
 
 contract BaseSwaps is Ownable, ReentrancyGuard {
     using SafeMath for uint;
