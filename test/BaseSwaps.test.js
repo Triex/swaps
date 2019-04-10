@@ -13,6 +13,7 @@ const { expect } = require("chai");
 
 const Swaps = artifacts.require("BaseSwaps");
 const Token = artifacts.require("TestToken");
+const BNB = artifacts.require("BNB");
 
 contract("BaseSwaps", ([owner, ...accounts]) => {
   let now;
@@ -379,5 +380,23 @@ contract("BaseSwaps", ([owner, ...accounts]) => {
     }
 
     await shouldFail(swaps.sendTransaction({ from: accounts[maxInvestorsCount], value }));
+  });
+
+  it("BNB token test", async () => {
+    const quoteToken = await BNB.new(ether('10'), "BNB", 18, 'BNB');
+
+    const swaps = await Swaps.new(
+      owner,
+      ZERO_ADDRESS,
+      quoteToken.address,
+      new BN("1000000000000000"),
+      new BN("2000000000000000"),
+      now.add(duration.days("1"))
+    );
+
+    await swaps.sendTransaction({ value: ether("0.001"), from: owner });
+    await quoteToken.approve(swaps.address, ether('0.001'));
+    await swaps.depositQuoteTokens(ether('0.001'));
+    await swaps.cancel();
   });
 });
