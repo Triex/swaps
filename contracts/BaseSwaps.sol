@@ -8,7 +8,7 @@ import "./IERC20.sol";
 contract BaseSwaps is Ownable, ReentrancyGuard {
     using SafeMath for uint;
 
-    uint public MAX_INVESTORS = 5;
+    uint public MAX_INVESTORS = 10;
 
     bool public isSwapped;
     bool public isCancelled;
