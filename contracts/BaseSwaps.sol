@@ -18,16 +18,22 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
 
     uint public expirationTimestamp;
 
-    mapping(address => uint) private limits;
-    mapping(address => uint) private raised;
-    mapping(address => address[]) private investors;
-    mapping(address => mapping(address => uint)) private investments;
+    mapping(address => uint) internal limits_;
+    mapping(address => uint) internal raised_;
+    mapping(address => address[]) internal investors_;
+    mapping(address => mapping(address => uint)) internal investments_;
+
+    address[] internal brokers_;
+    mapping (address => mapping (address => uint)) internal fees_;
+
+    address public baseOnlyInvestor;
 
     event Cancel();
     event Deposit(address indexed token, address indexed user, uint amount, uint balance);
     event Refund(address indexed token, address indexed user, uint amount);
     event Swap(address indexed byUser);
     event SwapSend(address indexed token, address indexed user, uint amount);
+    event FeeSend(address indexed token, address indexed broker, uint amount);
 
     constructor(
         address _owner,
@@ -35,7 +41,14 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         address _quoteAddress,
         uint _baseLimit,
         uint _quoteLimit,
-        uint _expirationTimestamp
+        uint _expirationTimestamp,
+        address _broker,
+        uint _brokerBasePercent,
+        uint _brokerQuotePercent,
+        address _myWish,
+        uint _myWishBasePercent,
+        uint _myWishQuotePercent,
+        address _baseOnlyInvestor
     ) public {
         require(_baseAddress != _quoteAddress, "Exchanged tokens must be different");
         require(_baseLimit > 0, "Base limit must be positive");
@@ -44,9 +57,18 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
 
         baseAddress = _baseAddress;
         quoteAddress = _quoteAddress;
-        limits[baseAddress] = _baseLimit;
-        limits[quoteAddress] = _quoteLimit;
+        limits_[baseAddress] = _baseLimit;
+        limits_[quoteAddress] = _quoteLimit;
         expirationTimestamp = _expirationTimestamp;
+
+        brokers_.push(_broker);
+        fees_[_broker][_baseAddress] = _brokerBasePercent;
+        fees_[_broker][_quoteAddress] = _brokerQuotePercent;
+        brokers_.push(_myWish);
+        fees_[_myWish][_baseAddress] = _myWishBasePercent;
+        fees_[_myWish][_quoteAddress] = _myWishQuotePercent;
+
+        baseOnlyInvestor = _baseOnlyInvestor;
 
         _transferOwnership(_owner);
     }
@@ -89,9 +111,9 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         address[2] memory tokens = [baseAddress, quoteAddress];
         for (uint t = 0; t < tokens.length; t++) {
             address token = tokens[t];
-            for (uint u = 0; u < investors[token].length; u++) {
-                address user = investors[token][u];
-                uint userInvestment = investments[token][user];
+            for (uint u = 0; u < investors_[token].length; u++) {
+                address user = investors_[token][u];
+                uint userInvestment = investments_[token][user];
                 _sendTokens(token, user, userInvestment);
             }
         }
@@ -117,57 +139,61 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     }
 
     function baseLimit() public view returns (uint) {
-        return limits[baseAddress];
+        return limits_[baseAddress];
     }
 
     function quoteLimit() public view returns (uint) {
-        return limits[quoteAddress];
+        return limits_[quoteAddress];
     }
 
     function baseRaised() public view returns (uint) {
-        return raised[baseAddress];
+        return raised_[baseAddress];
     }
 
     function quoteRaised() public view returns (uint) {
-        return raised[quoteAddress];
+        return raised_[quoteAddress];
     }
 
     function baseInvestors() public view returns (address[] memory) {
-        return investors[baseAddress];
+        return investors_[baseAddress];
     }
 
     function quoteInvestors() public view returns (address[] memory) {
-        return investors[quoteAddress];
+        return investors_[quoteAddress];
     }
 
     function baseUserInvestment(address _user) public view returns (uint) {
-        return investments[baseAddress][_user];
+        return investments_[baseAddress][_user];
     }
 
     function quoteUserInvestment(address _user) public view returns (uint) {
-        return investments[quoteAddress][_user];
+        return investments_[quoteAddress][_user];
     }
 
     function isBaseFilled() public view returns (bool) {
-        return raised[baseAddress] == limits[baseAddress];
+        return raised_[baseAddress] == limits_[baseAddress];
     }
 
     function isQuoteFilled() public view returns (bool) {
-        return raised[quoteAddress] == limits[quoteAddress];
+        return raised_[quoteAddress] == limits_[quoteAddress];
+    }
+
+    function brokers() public view returns (address[] memory) {
+        return brokers_;
     }
 
     function _refund(address _token) internal {
         require(!isSwapped, "Already swapped");
         address user = msg.sender;
-        uint investment = investments[_token][user];
+        uint investment = investments_[_token][user];
         if (investment > 0) {
-            delete investments[_token][user];
+            delete investments_[_token][user];
         }
 
-        _removeInvestor(investors[_token], user);
+        _removeInvestor(investors_[_token], user);
 
         if (investment > 0) {
-            raised[_token] = raised[_token].sub(investment);
+            raised_[_token] = raised_[_token].sub(investment);
             _sendTokens(_token, user, investment);
         }
 
@@ -189,17 +215,17 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     }
 
     function _distribute(address _aSide, address _bSide) internal {
-        uint remainder = raised[_bSide];
-        for (uint i = 0; i < investors[_aSide].length; i++) {
-            address user = investors[_aSide][i];
+        uint remainder = raised_[_bSide];
+        for (uint i = 0; i < investors_[_aSide].length; i++) {
+            address user = investors_[_aSide][i];
             uint toPay;
             // last
-            if (i + 1 == investors[_aSide].length) {
+            if (i + 1 == investors_[_aSide].length) {
                 toPay = remainder;
             } else {
-                uint aSideRaised = raised[_aSide];
-                uint userInvestment = investments[_aSide][user];
-                uint bSideRaised = raised[_bSide];
+                uint aSideRaised = raised_[_aSide];
+                uint userInvestment = investments_[_aSide][user];
+                uint bSideRaised = raised_[_bSide];
                 toPay = userInvestment.mul(bSideRaised).div(aSideRaised);
                 remainder = remainder.sub(toPay);
             }
@@ -250,29 +276,32 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
         uint amount = _amount;
         require(baseAddress == _token || quoteAddress == _token, "You can deposit only base or quote currency");
         require(amount > 0, "Currency amount must be positive");
-        require(raised[_token] < limits[_token], "Limit already reached");
+        require(raised_[_token] < limits_[_token], "Limit already reached");
         require(now <= expirationTimestamp, "Contract expired");
-
-        if (!_isInvestor(_token, _from)) {
-            require(investors[_token].length < MAX_INVESTORS, "Too many investors");
-            investors[_token].push(_from);
+        if (baseOnlyInvestor != address(0)) {
+            require(msg.sender == baseOnlyInvestor, "Allowed only for specified address");
         }
 
-        uint raisedWithOverflow = raised[_token].add(amount);
-        if (raisedWithOverflow > limits[_token]) {
-            uint overflow = raisedWithOverflow.sub(limits[_token]);
+        if (!_isInvestor(_token, _from)) {
+            require(investors_[_token].length < MAX_INVESTORS, "Too many investors");
+            investors_[_token].push(_from);
+        }
+
+        uint raisedWithOverflow = raised_[_token].add(amount);
+        if (raisedWithOverflow > limits_[_token]) {
+            uint overflow = raisedWithOverflow.sub(limits_[_token]);
             _sendTokens(_token, _from, overflow);
             amount = amount.sub(overflow);
         }
 
-        investments[_token][_from] = investments[_token][_from].add(amount);
+        investments_[_token][_from] = investments_[_token][_from].add(amount);
 
-        raised[_token] = raised[_token].add(amount);
+        raised_[_token] = raised_[_token].add(amount);
         emit Deposit(
             _token,
             _from,
             amount,
-            investments[_token][_from]
+            investments_[_token][_from]
         );
 
         if (isBaseFilled() && isQuoteFilled()) {
@@ -281,6 +310,6 @@ contract BaseSwaps is Ownable, ReentrancyGuard {
     }
 
     function _isInvestor(address _token, address _who) internal view returns (bool) {
-        return investments[_token][_who] > 0;
+        return investments_[_token][_who] > 0;
     }
 }
